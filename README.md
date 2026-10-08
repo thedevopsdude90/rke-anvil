@@ -14,7 +14,8 @@ Monitoring and logging for the RKE2/Rancher lab cluster, deployed by
 ## Layout
 
 - `values/` - Helm values, the part you edit.
-- `apps/<name>/` - plain YAML rendered from the chart by `render.sh`. Anvil
+- `apps/<name>/` - plain YAML rendered from the chart by `render.sh`, plus
+  hand-written extras (`grafana/admin-secret.yaml`, `grafana/gateway.yaml`). Anvil
   doesn't render Helm yet, so this is what it syncs. Don't hand-edit
   `manifests.yaml`; change the values and re-render.
 - `applications/` - the Anvil `Application` for each app, pointing at
@@ -65,3 +66,8 @@ git add -A && git commit -m "..." && git push
 ```
 
 Anvil picks up the change within `spec.interval` (3m).
+
+## Access
+
+Grafana: http://192.168.122.202 (Cilium Gateway, `apps/grafana/gateway.yaml`).
+Log in with the `grafana/admin` credentials from Anvil's vault.

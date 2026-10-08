@@ -1,0 +1,35 @@
+# Exposes Grafana on the lab network through the Cilium Gateway API, the
+# same way Anvil is exposed on .201. Not rendered by render.sh, so it
+# survives re-renders. Plain HTTP; fine for the libvirt lab network only.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: grafana
+  namespace: grafana
+spec:
+  gatewayClassName: cilium
+  # Pinned so the URL doesn't change; must be inside the
+  # CiliumLoadBalancerIPPool (192.168.122.200-220).
+  addresses:
+    - type: IPAddress
+      value: 192.168.122.202
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana
+  namespace: grafana
+spec:
+  parentRefs:
+    - name: grafana
+  rules:
+    - backendRefs:
+        - name: grafana
+          port: 80
