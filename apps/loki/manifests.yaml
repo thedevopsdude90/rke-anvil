@@ -205,7 +205,7 @@ data:
     
       sendfile     on;
       tcp_nopush   on;
-      resolver kube-dns.kube-system.svc.cluster.local.;
+      resolver rke2-coredns-rke2-coredns.kube-system.svc.cluster.local.;
     
       # if the X-Query-Tags header is empty, set a noop= without a value as empty values are not logged
       map $http_x_query_tags $query_tags {
@@ -815,7 +815,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 7f59b16a0121fadc14a504ba3bc07ec5d397a0093def094ae56ba0c10f467dbb
+        checksum/config: 33d0c94e37e6429611363c0634a1a890925cc0fdad8ac407c451f800495390bb
       labels:
         app.kubernetes.io/name: loki
         app.kubernetes.io/instance: loki

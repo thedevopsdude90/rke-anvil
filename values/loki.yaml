@@ -1,3 +1,7 @@
+# RKE2 names its DNS Service rke2-coredns-rke2-coredns, not kube-dns; the
+# gateway's nginx resolver crash-loops with "host not found" otherwise.
+global:
+  dnsService: rke2-coredns-rke2-coredns
 loki:
   commonConfig:
     replication_factor: 1
