@@ -2,13 +2,15 @@ persistence:
   enabled: true
   type: pvc
   size: 2Gi
+# The GKE limits (250m/256Mi) left Grafana 13 throttled and near OOM during
+# its first-start database migrations, so the liveness probe kept killing it.
 resources:
   requests:
-    cpu: 50m
-    memory: 128Mi
-  limits:
-    cpu: 250m
+    cpu: 100m
     memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 768Mi
 datasources:
   datasources.yaml:
     apiVersion: 1
