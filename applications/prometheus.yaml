@@ -1,0 +1,25 @@
+# Prometheus server, kube-state-metrics and node-exporter.
+# In anvil-system because the chart includes cluster-scoped RBAC, which
+# Anvil only allows for Applications in its system namespace.
+apiVersion: anvil.dev/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: anvil-system
+spec:
+  source:
+    repoURL: https://github.com/thedevopsdude90/rke-anvil.git
+    revision: main
+    path: apps/prometheus
+    # For a private repo, add a GitHub connection in Anvil (Settings, namespace
+    # anvil-system, name github) and uncomment:
+    # credentialsRef: anvil-system/connections/github
+  destination:
+    namespace: prometheus
+  interval: 3m
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      createNamespace: true

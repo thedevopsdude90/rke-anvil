@@ -1,0 +1,25 @@
+# Grafana with Prometheus and Loki datasources and the cluster dashboard.
+# In anvil-system because the chart includes cluster-scoped RBAC, which
+# Anvil only allows for Applications in its system namespace.
+apiVersion: anvil.dev/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: anvil-system
+spec:
+  source:
+    repoURL: https://github.com/thedevopsdude90/rke-anvil.git
+    revision: main
+    path: apps/grafana
+    # For a private repo, add a GitHub connection in Anvil (Settings, namespace
+    # anvil-system, name github) and uncomment:
+    # credentialsRef: anvil-system/connections/github
+  destination:
+    namespace: grafana
+  interval: 3m
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      createNamespace: true

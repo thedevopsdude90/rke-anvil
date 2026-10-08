@@ -1,0 +1,506 @@
+---
+# Source: grafana/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: false
+metadata:
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+  name: grafana
+  namespace: grafana
+---
+# Source: grafana/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana
+  namespace: grafana
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+data:
+  
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    [log]
+    mode = console
+    [paths]
+    data = /var/lib/grafana/
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    [plugins]
+    preinstall_auto_update = false
+    [server]
+    domain = ''
+    [unified_storage]
+    index_path = /var/lib/grafana-search/bleve
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - access: proxy
+      isDefault: true
+      name: Prometheus
+      type: prometheus
+      uid: prometheus
+      url: http://prometheus-server.prometheus.svc.cluster.local
+    - access: proxy
+      name: Loki
+      type: loki
+      uid: loki
+      url: http://loki-gateway.loki.svc.cluster.local
+  dashboardproviders.yaml: |
+    apiVersion: 1
+    providers:
+    - disableDeletion: false
+      editable: true
+      folder: ""
+      name: default
+      options:
+        path: /var/lib/grafana/dashboards/default
+      orgId: 1
+      type: file
+  download_dashboards.sh: |
+    #!/usr/bin/env sh
+    set -eufo pipefail
+    mkdir -p /var/lib/grafana/dashboards/default
+    mkdir -p /var/lib/grafana/dashboards/default
+---
+# Source: grafana/templates/dashboards-json-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-default
+  namespace: grafana
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+    dashboard-provider: default
+data:
+  rke2-cluster.json:
+    |-
+      {
+        "title": "RKE2 Cluster (rke2-lab)",
+        "uid": "rke2-cluster",
+        "schemaVersion": 39,
+        "version": 1,
+        "refresh": "30s",
+        "time": { "from": "now-6h", "to": "now" },
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "type": "timeseries",
+            "title": "Cluster CPU usage %",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                "legendFormat": "CPU used %",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "type": "timeseries",
+            "title": "Cluster memory usage %",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "100 * (1 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)))",
+                "legendFormat": "Memory used %",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "type": "stat",
+            "title": "Nodes Ready",
+            "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 4,
+            "type": "stat",
+            "title": "Total nodes",
+            "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "count(kube_node_info)",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 5,
+            "type": "stat",
+            "title": "Pods not Running",
+            "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "sum(kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\"})",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 6,
+            "type": "stat",
+            "title": "Total pods running",
+            "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "sum(kube_pod_status_phase{phase=\"Running\"})",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 7,
+            "type": "bargauge",
+            "title": "Running pods by namespace",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "sum(kube_pod_status_phase{phase=\"Running\"}) by (namespace)",
+                "legendFormat": "{{namespace}}",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 8,
+            "type": "timeseries",
+            "title": "Network I/O (all nodes)",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|cali.*\"}[5m]))",
+                "legendFormat": "Receive",
+                "refId": "A"
+              },
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|cali.*\"}[5m]))",
+                "legendFormat": "Transmit",
+                "refId": "B"
+              }
+            ]
+          },
+          {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Root filesystem usage % (per node)",
+            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+            "targets": [
+              {
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}) * 100)",
+                "legendFormat": "{{instance}}",
+                "refId": "A"
+              }
+            ]
+          }
+        ]
+      }
+---
+# Source: grafana/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana
+  namespace: grafana
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "2Gi"
+---
+# Source: grafana/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+  name: grafana-clusterrole
+rules: []
+---
+# Source: grafana/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: grafana-clusterrolebinding
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+subjects:
+  - kind: ServiceAccount
+    name: grafana
+    namespace: grafana
+roleRef:
+  kind: ClusterRole
+  name: grafana-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: grafana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: grafana
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+spec:
+  type: ClusterIP
+  ports:
+    - name: service
+      port: 80
+      protocol: TCP
+      targetPort: grafana
+  selector:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+---
+# Source: grafana/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: grafana
+  labels:
+    helm.sh/chart: grafana-13.2.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+    app.kubernetes.io/version: "13.2.1"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/instance: grafana
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-13.2.4
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/instance: grafana
+        app.kubernetes.io/version: "13.2.1"
+      annotations:
+        checksum/config: 860b777e69a9fef1c9b99b69a931467937147542237b42cd09e3930980483d29
+        checksum/dashboards-json-config: 588574beca2a9cc3c6e3a7951194c62fb0cb4f0285167a17cb527862393d5a6e
+        checksum/sc-dashboard-provider-config: e70bf6a851099d385178a76de9757bb0bef8299da6d8443602590e44f05fdf24
+        kubectl.kubernetes.io/default-container: grafana
+    spec:
+      
+      serviceAccountName: grafana
+      automountServiceAccountToken: true
+      shareProcessNamespace: false
+      securityContext:
+        fsGroup: 472
+        runAsGroup: 472
+        runAsNonRoot: true
+        runAsUser: 472
+      initContainers:
+        - name: init-chown-data
+          image: "docker.io/library/busybox:1.38.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            capabilities:
+              add:
+              - CHOWN
+              - DAC_OVERRIDE
+              drop:
+              - ALL
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+            runAsUser: 0
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - chown
+            - -R
+            - 472:472
+            - /var/lib/grafana
+          volumeMounts:
+            - name: storage
+              mountPath: "/var/lib/grafana"
+        - name: download-dashboards
+          image: "docker.io/curlimages/curl:8.22.0"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: [ "/etc/grafana/download_dashboards.sh" ]
+          env:
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/grafana/download_dashboards.sh"
+              subPath: download_dashboards.sh
+            - name: storage
+              mountPath: "/var/lib/grafana"
+      enableServiceLinks: true
+      containers:
+        - name: grafana
+          image: "docker.io/grafana/grafana:13.2.1-distroless"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: "/tmp"
+            - name: config
+              mountPath: "/etc/grafana/grafana.ini"
+              subPath: grafana.ini
+            - name: storage
+              mountPath: "/var/lib/grafana"
+            - name: search
+              mountPath: "/var/lib/grafana-search"
+            - name: dashboards-default
+              mountPath: "/var/lib/grafana/dashboards/default/rke2-cluster.json"
+              subPath: "rke2-cluster.json"
+            - name: config
+              mountPath: "/etc/grafana/provisioning/datasources/datasources.yaml"
+              subPath: "datasources.yaml"
+            - name: config
+              mountPath: "/etc/grafana/provisioning/dashboards/dashboardproviders.yaml"
+              subPath: "dashboardproviders.yaml"
+          ports:
+            - name: grafana
+              containerPort: 3000
+              protocol: TCP
+            - name: gossip-tcp
+              containerPort: 9094
+              protocol: TCP
+            - name: gossip-udp
+              containerPort: 9094
+              protocol: UDP
+            - name: profiling
+              containerPort: 6060
+              protocol: TCP
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin
+                  key: admin-password
+            - name: GF_PATHS_DATA
+              value: /var/lib/grafana/
+            - name: GF_PATHS_LOGS
+              value: /var/log/grafana
+            - name: GF_PATHS_PLUGINS
+              value: /var/lib/grafana/plugins
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+            - name: GF_UNIFIED_STORAGE_INDEX_PATH
+              value: /var/lib/grafana-search/bleve
+            - name: GOMEMLIMIT
+              value: "230MiB"
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/health
+              port: grafana
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: grafana
+          resources:
+            limits:
+              cpu: 250m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: grafana
+        - name: dashboards-default
+          configMap:
+            name: grafana-dashboards-default
+        - name: storage
+          persistentVolumeClaim:
+            claimName: grafana
+        - name: search
+          emptyDir: {}

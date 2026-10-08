@@ -1,0 +1,199 @@
+persistence:
+  enabled: true
+  type: pvc
+  size: 2Gi
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      uid: prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus-server.prometheus.svc.cluster.local
+      isDefault: true
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.loki.svc.cluster.local
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: default
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/default
+dashboards:
+  default:
+    rke2-cluster:
+      json: |
+        {
+          "title": "RKE2 Cluster (rke2-lab)",
+          "uid": "rke2-cluster",
+          "schemaVersion": 39,
+          "version": 1,
+          "refresh": "30s",
+          "time": { "from": "now-6h", "to": "now" },
+          "timezone": "browser",
+          "panels": [
+            {
+              "id": 1,
+              "type": "timeseries",
+              "title": "Cluster CPU usage %",
+              "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                  "legendFormat": "CPU used %",
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "id": 2,
+              "type": "timeseries",
+              "title": "Cluster memory usage %",
+              "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "100 * (1 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)))",
+                  "legendFormat": "Memory used %",
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "id": 3,
+              "type": "stat",
+              "title": "Nodes Ready",
+              "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "id": 4,
+              "type": "stat",
+              "title": "Total nodes",
+              "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "count(kube_node_info)",
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "id": 5,
+              "type": "stat",
+              "title": "Pods not Running",
+              "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "sum(kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\"})",
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "id": 6,
+              "type": "stat",
+              "title": "Total pods running",
+              "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "sum(kube_pod_status_phase{phase=\"Running\"})",
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "id": 7,
+              "type": "bargauge",
+              "title": "Running pods by namespace",
+              "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "sum(kube_pod_status_phase{phase=\"Running\"}) by (namespace)",
+                  "legendFormat": "{{namespace}}",
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "id": 8,
+              "type": "timeseries",
+              "title": "Network I/O (all nodes)",
+              "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|cali.*\"}[5m]))",
+                  "legendFormat": "Receive",
+                  "refId": "A"
+                },
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|cali.*\"}[5m]))",
+                  "legendFormat": "Transmit",
+                  "refId": "B"
+                }
+              ]
+            },
+            {
+              "id": 9,
+              "type": "timeseries",
+              "title": "Root filesystem usage % (per node)",
+              "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+              "targets": [
+                {
+                  "datasource": { "type": "prometheus", "uid": "prometheus" },
+                  "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}) * 100)",
+                  "legendFormat": "{{instance}}",
+                  "refId": "A"
+                }
+              ]
+            }
+          ]
+        }
+admin:
+  existingSecret: grafana-admin
+  userKey: admin-user
+  passwordKey: admin-password

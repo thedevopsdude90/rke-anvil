@@ -1,0 +1,25 @@
+# Loki, single binary, logs on a PVC.
+# In anvil-system because the chart includes cluster-scoped RBAC, which
+# Anvil only allows for Applications in its system namespace.
+apiVersion: anvil.dev/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: anvil-system
+spec:
+  source:
+    repoURL: https://github.com/thedevopsdude90/rke-anvil.git
+    revision: main
+    path: apps/loki
+    # For a private repo, add a GitHub connection in Anvil (Settings, namespace
+    # anvil-system, name github) and uncomment:
+    # credentialsRef: anvil-system/connections/github
+  destination:
+    namespace: loki
+  interval: 3m
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      createNamespace: true
